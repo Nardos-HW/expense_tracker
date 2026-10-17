@@ -3,7 +3,7 @@ import '../models/expense.dart';
 import '../services/expense_service.dart';
 import 'add_expense_screen.dart';
 import '../services/auth_service.dart';
-import 'login_screen.dart'; // Adjust path to your login screen
+import 'login_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -42,15 +42,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
             onPressed: () async {
+              final nav = Navigator.of(context);
               await AuthService().logout();
-              if (mounted) {
-                // Navigate back to Login and clear all previous routes
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
+              if (!mounted) return;
+              // Navigate back to Login and clear all previous routes
+              nav.pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (route) => false,
+              );
             },
           ),
         ],
@@ -66,7 +65,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             MaterialPageRoute(builder: (context) => const AddExpenseScreen()),
           );
           
-          if (result == true) _refreshExpenses();
+          if (result == true && mounted) _refreshExpenses();
         },
       ),
       
@@ -122,16 +121,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   );
                 },
                 onDismissed: (direction) async {
+                  final messenger = ScaffoldMessenger.of(context);
                   final success = await _expenseService.deleteExpense(expense.id);
+                  if (!mounted) return;
                   if (success) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       const SnackBar(content: Text('Expense deleted'))
                     );
                   } else {
                     _refreshExpenses();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Failed to delete expense'))
-                    );
                   }
                 },
                 child: Card(
@@ -152,7 +150,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       expense.title, 
                       style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF132E50))
                     ),
-                    // Fixed syntax error here
                     subtitle: Text('${expense.category ?? 'Uncategorized'}\n${expense.expenseDate}'),
                     
                     // 2. Wrap trailing in a Row to include both Price and Edit Button
@@ -174,7 +171,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 builder: (context) => AddExpenseScreen(expense: expense),
                               ),
                             );
-                            if (result == true) _refreshExpenses();
+                            if (result == true && mounted) _refreshExpenses();
                           },
                         ),
                       ],

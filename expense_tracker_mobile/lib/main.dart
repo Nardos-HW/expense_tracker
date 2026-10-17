@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_navigator.dart';
 import 'screens/login_screen.dart';
 
 void main() {
@@ -13,6 +14,8 @@ class ExpenseTrackerApp extends StatelessWidget {
     return MaterialApp(
       title: 'Expense Tracker',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
+      scaffoldMessengerKey: scaffoldMessengerKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1677E8)),
         useMaterial3: true,

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? message;
+  const LoginScreen({super.key, this.message});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -17,26 +19,44 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String _errorMessage = '';
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.message != null && widget.message!.isNotEmpty) {
+      _errorMessage = widget.message!;
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   void _login() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
 
-    final success = await _authService.login(
+    final error = await _authService.login(
       _emailController.text.trim(),
       _passwordController.text,
     );
 
-    setState(() => _isLoading = false);
+    if (!mounted) return;
 
-    if (success) {
+    if (error == null) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const DashboardScreen()),
       );
     } else {
-      setState(() => _errorMessage = 'Invalid email or password. Please try again.');
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error;
+      });
     }
   }
 
@@ -60,7 +80,11 @@ class _LoginScreenState extends State<LoginScreen> {
               if (_errorMessage.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
-                  child: Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+                  child: Text(
+                    _errorMessage,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+                  ),
                 ),
               TextField(
                 controller: _emailController,
@@ -97,6 +121,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text('Log In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                  );
+                },
+                child: const Text("Don't have an account? Sign up", style: TextStyle(color: Color(0xFF647894))),
               ),
             ],
           ),

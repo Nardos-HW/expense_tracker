@@ -10,7 +10,7 @@ class Expense extends Model
     use HasFactory;
 
     // Add this line to allow form data to be saved to these columns
-    protected $fillable = ['title', 'amount', 'expense_date', 'category'];
+    protected $fillable = ['title', 'amount', 'expense_date', 'category', 'source'];
 
     public function user()
     {

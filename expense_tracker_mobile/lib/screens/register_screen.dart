@@ -17,34 +17,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    final success = await _authService.register(
-      _nameController.text,
-      _emailController.text,
+    final error = await _authService.register(
+      _nameController.text.trim(),
+      _emailController.text.trim(),
       _passwordController.text,
     );
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (success) {
-      if (mounted) {
-        // Navigate to Dashboard and clear routing history
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
-          (route) => false,
-        );
-      }
+    if (error == null) {
+      // Navigate to Dashboard and clear routing history
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        (route) => false,
+      );
     } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration failed. Email might be in use.')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
     }
   }
 
@@ -67,7 +72,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
             ),
             child: Form(
               key: _formKey,
@@ -83,7 +88,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       fillColor: const Color(0xFFF3F7FD),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     ),
-                    validator: (value) => value!.isEmpty ? 'Enter your name' : null,
+                    validator: (value) => value == null || value.isEmpty ? 'Enter your name' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -94,7 +99,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       fillColor: const Color(0xFFF3F7FD),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     ),
-                    validator: (value) => value!.isEmpty ? 'Enter an email' : null,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) => value == null || value.isEmpty ? 'Enter an email' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -106,7 +112,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       fillColor: const Color(0xFFF3F7FD),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     ),
-                    validator: (value) => value!.length < 8 ? 'Minimum 8 characters' : null,
+                    validator: (value) => value == null || value.length < 8 ? 'Minimum 8 characters' : null,
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(

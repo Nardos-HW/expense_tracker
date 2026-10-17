@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Expense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class ExpenseController extends Controller
 {
@@ -13,6 +14,7 @@ class ExpenseController extends Controller
         $expenses = Expense::where('user_id', Auth::id())
             ->orderBy('expense_date', 'desc')
             ->get();
+
         return response()->json($expenses);
     }
 
@@ -22,11 +24,16 @@ class ExpenseController extends Controller
             'title' => 'required|string|max:255',
             'amount' => 'required|numeric|min:0.01',
             'expense_date' => 'required|date',
-            'category' => 'nullable|string'
+            'category' => 'nullable|string',
         ]);
 
+        $currentToken = $request->user()?->currentAccessToken();
+        $validated['source'] = ($currentToken instanceof PersonalAccessToken)
+            ? $currentToken->name
+            : 'vue-web';
+
         // Cleanly creates the expense attached to the authenticated user
-        $expense = Auth::user()->expenses()->create($validated);
+        $expense = $request->user()->expenses()->create($validated);
 
         return response()->json($expense, 201);
     }
@@ -41,7 +48,7 @@ class ExpenseController extends Controller
             'title' => 'sometimes|required|string|max:255',
             'amount' => 'sometimes|required|numeric|min:0.01',
             'expense_date' => 'sometimes|required|date',
-            'category' => 'nullable|string'
+            'category' => 'nullable|string',
         ]);
 
         $expense->update($validated);

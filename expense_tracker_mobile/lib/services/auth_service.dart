@@ -1,15 +1,19 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 
 class AuthService {
-  // Make sure this matches your Laravel backend URL
-  final String baseUrl = 'http://127.0.0.1:8000/api'; 
+  final String baseUrl = ApiConfig.baseUrl;
+
+  /// Holds the last error message for UI display
+  String? lastErrorMessage;
 
   // ==========================================
   // TOKEN MANAGEMENT
   // ==========================================
-  
+
   Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', token);
@@ -29,8 +33,10 @@ class AuthService {
   // AUTHENTICATION METHODS
   // ==========================================
 
-  // Login an existing user
-  Future<bool> login(String email, String password) async {
+  /// Log in an existing user.
+  /// Returns null on success, or a user-friendly error message on failure.
+  Future<String?> login(String email, String password) async {
+    lastErrorMessage = null;
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/login'),
@@ -38,23 +44,48 @@ class AuthService {
         body: {
           'email': email,
           'password': password,
+          'device_name': 'flutter-mobile',
         },
       );
 
+      debugPrint('AuthService.login response [${response.statusCode}]: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        await saveToken(data['access_token']);
-        return true;
+        final token = data['token'];
+        if (token == null) {
+          lastErrorMessage = 'Authentication failed: Server did not return a token.';
+          return lastErrorMessage;
+        }
+        await saveToken(token.toString());
+        return null;
+      } else if (response.statusCode == 422) {
+        lastErrorMessage = _extractErrorMessage(
+          response.body,
+          defaultMessage: 'Invalid email or password. Please try again.',
+        );
+        return lastErrorMessage;
+      } else if (response.statusCode >= 500) {
+        lastErrorMessage = 'Server error (${response.statusCode}). Please try again later.';
+        return lastErrorMessage;
+      } else {
+        lastErrorMessage = _extractErrorMessage(
+          response.body,
+          defaultMessage: 'Login failed (status ${response.statusCode}).',
+        );
+        return lastErrorMessage;
       }
-      return false;
     } catch (e) {
-      print("Login error: $e");
-      return false;
+      debugPrint('AuthService.login exception: $e');
+      lastErrorMessage = 'Unable to connect to server. Check your network or CORS settings.';
+      return lastErrorMessage;
     }
   }
 
-  // Register a new user
-  Future<bool> register(String name, String email, String password) async {
+  /// Register a new user.
+  /// Returns null on success, or a user-friendly error message on failure.
+  Future<String?> register(String name, String email, String password) async {
+    lastErrorMessage = null;
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/register'),
@@ -63,38 +94,92 @@ class AuthService {
           'name': name,
           'email': email,
           'password': password,
+          'password_confirmation': password,
+          'device_name': 'flutter-mobile',
         },
       );
 
+      debugPrint('AuthService.register response [${response.statusCode}]: ${response.body}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        await saveToken(data['access_token']);
-        return true;
+        final token = data['token'];
+        if (token == null) {
+          lastErrorMessage = 'Registration failed: Server did not return a token.';
+          return lastErrorMessage;
+        }
+        await saveToken(token.toString());
+        return null;
+      } else if (response.statusCode == 422) {
+        lastErrorMessage = _extractErrorMessage(
+          response.body,
+          defaultMessage: 'Validation failed. Please check your input.',
+        );
+        return lastErrorMessage;
+      } else if (response.statusCode >= 500) {
+        lastErrorMessage = 'Server error (${response.statusCode}). Please try again later.';
+        return lastErrorMessage;
+      } else {
+        lastErrorMessage = _extractErrorMessage(
+          response.body,
+          defaultMessage: 'Registration failed (status ${response.statusCode}).',
+        );
+        return lastErrorMessage;
       }
-      return false;
     } catch (e) {
-      print("Registration error: $e");
-      return false;
+      debugPrint('AuthService.register exception: $e');
+      lastErrorMessage = 'Unable to connect to server. Check your network or CORS settings.';
+      return lastErrorMessage;
     }
   }
 
-  // Logout the user
+  /// Logout the user
   Future<void> logout() async {
     final token = await getToken();
     if (token != null) {
       try {
-        await http.post(
+        final response = await http.post(
           Uri.parse('$baseUrl/logout'),
           headers: {
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
         );
+        debugPrint('AuthService.logout response [${response.statusCode}]');
       } catch (e) {
-        print("Logout API error: $e");
+        debugPrint('Logout API error: $e');
       }
     }
     // Always clear the token locally, even if the backend call fails
     await removeToken(); 
+  }
+
+  String _extractErrorMessage(String responseBody, {required String defaultMessage}) {
+    try {
+      final decoded = jsonDecode(responseBody);
+      if (decoded is Map<String, dynamic>) {
+        if (decoded['errors'] is Map) {
+          final errorsMap = decoded['errors'] as Map;
+          if (errorsMap['email'] is List && (errorsMap['email'] as List).isNotEmpty) {
+            return (errorsMap['email'] as List).first.toString();
+          }
+          final errorList = <String>[];
+          for (final value in errorsMap.values) {
+            if (value is List) {
+              errorList.addAll(value.map((e) => e.toString()));
+            } else if (value is String) {
+              errorList.add(value);
+            }
+          }
+          if (errorList.isNotEmpty) {
+            return errorList.join('\n');
+          }
+        }
+        if (decoded['message'] != null && decoded['message'].toString().trim().isNotEmpty) {
+          return decoded['message'].toString();
+        }
+      }
+    } catch (_) {}
+    return defaultMessage;
   }
 }
