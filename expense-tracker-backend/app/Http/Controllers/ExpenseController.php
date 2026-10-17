@@ -10,9 +10,7 @@ class ExpenseController extends Controller
 {
     public function index()
     {
-        // Eager loading completely prevents the N+1 bug
-        $expenses = Expense::with('user')
-            ->where('user_id', Auth::id())
+        $expenses = Expense::where('user_id', Auth::id())
             ->orderBy('expense_date', 'desc')
             ->get();
         return response()->json($expenses);

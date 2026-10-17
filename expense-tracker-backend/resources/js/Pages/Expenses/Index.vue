@@ -1,6 +1,4 @@
-from pathlib import Path
-
-content = r'''<script setup>
+<script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import { ref, onMounted, computed } from 'vue';
@@ -1366,8 +1364,4 @@ onMounted(fetchExpenses);
     }
 }
 </style>
-'''
 
-path = Path("/mnt/data/Dashboard.vue")
-path.write_text(content, encoding="utf-8")
-print(f"Created updated {path} ({len(content.splitlines())} lines)")
